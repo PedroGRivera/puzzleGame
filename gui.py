@@ -99,6 +99,7 @@ def addSelection(x):
         print(str(game.pieces[(game.dimension)*a[0] + a[1]].curX) + " : " + str(game.pieces[(game.dimension)*a[0] + a[1]].curY) )
         print(str(game.pieces[(game.dimension)*b[0] + b[1]].curX) + " : " + str(game.pieces[(game.dimension)*b[0] + b[1]].curY) )
 
+        print(validatePuzzle(game))
         gamePage()
 
 
@@ -143,6 +144,28 @@ def savePuzzle(puzzle):
     file_pi = open(puzzle.filepath + ".puz", 'wb')
     pickle.dump(puzzle, file_pi)
     print("Data saved")
+
+#Might be an issue here with the way I wrote it syntactically. Logically it works
+def loadPuzzle(puzzle):
+    file_pi = open(filepath + ".puz", 'rb')
+    puzzle = pickle.load(file_pi)
+    image = Image.open(puzzle.filepath)
+
+    for i in range(len(puzzle.pieces)): #remake pictures from dimensions
+        tempImage = image.crop((puzzle.pieces[i].left, puzzle.pieces[i].upper, puzzle.pieces[i].right, puzzle.pieces[i].lower))
+        tempPhoto = ImageTk.PhotoImage(tempImage)
+        label = tk.Label(master = root, image=tempPhoto, anchor=tk.CENTER)
+        label.photo = tempPhoto
+        puzzle.pieces[i].label = label
+
+    print("Puzzle save data opened")
+
+#Checks if puzzle is finished or not. Returns bool
+def validatePuzzle(puzzle):
+    for i in range(len(puzzle.pieces) - 1):
+        if ((puzzle.pieces[i].curX != puzzle.pieces[i].finX) or (puzzle.pieces[i].curY != puzzle.pieces[i].finY)):
+            return False
+    return True
 
 #Function calls to make sure the above all works
 # game = Puzzle()
