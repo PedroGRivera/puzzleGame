@@ -1,8 +1,12 @@
 import os
+import random
+import pickle
 import tkinter as tk
-from tkinter import filedialog, Text
+from tkinter import filedialog, Text, simpledialog
 import atexit
 import math
+from PIL import Image, ImageTk
+
 
 window = tk.Tk()
 
@@ -22,27 +26,131 @@ selCol = "#2b8c6f"
 #fonts
 mainFont = ("Arial", 25)
 smallFont = ("Arial", 18)
-
-##############################placeholder variables###############################
-#these variables should be replaced with the backend code once it has been finished
 pieces = 2
-game   = []
-#game element: {'pos':[],'finish':[],'image':''}
-def fillGame():
-    global pieces
-    global game
-    #print(math.sqrt(pieces))
-    for i in range(0, int(math.sqrt(pieces))):
-        for j in range(0,int(math.sqrt(pieces))):
-            game.append({'pos':[i,j],'finish':[i,j],'image':'C:\\Users\\Pedro\\Document\\senior\\spring\\3d\\puzzleGame\\lsu.jpg'})
-    # for i in game:
-    #     print(i)
-            
+game = None
+image = ""
+selections = []
+
 
 
 ################################   create canvas  ################################
 can = tk.Canvas(master=window, width=750, height=750, bg=bg)
 can.pack(fill=tk.BOTH, side=tk.LEFT,expand=True)
+
+
+####################################################################################################################################################################
+##############################################################################backend###############################################################################
+####################################################################################################################################################################
+
+class Piece:
+    def __init__(self):
+        self.label = ''     #label holds the puzzle piece itself, may need to change this to button if we use buttons later
+        self.left = ''      #left, upper, right, lower are needed to crop the piece
+        self.upper = ''
+        self.right = ''
+        self.lower = ''
+        self.curX = ''       #Current X (row) position
+        self.curY = ''       #Current Y (column) position
+        self.finX = ''       #Final X position
+        self.finY = ''       #final Y position
+
+class Puzzle:
+    def __init__(self):
+        self.pieces = []    #list of all puzzle pieces
+        self.dimension = 0  #puzzle dimensions set by the user
+        self.filepath = ''  #location of the base image
+        self.width = ''     #widht and height, needed to generate piece dimensions
+        self.height = ''
+
+def generatePuzzle(puzzle):
+    global pieces
+    global image
+    puzzle.dimension = int(math.sqrt(pieces)) #simpledialog.askinteger("Input", "What size grid do you want?", parent=root, minvalue = 0, maxvalue = 6)
+    puzzle.filepath  = image   #filedialog.askopenfilename()
+    image = Image.open(puzzle.filepath)
+    puzzle.width = image.width / puzzle.dimension
+    puzzle.height = image.height / puzzle.dimension
+    generatePieces(puzzle, image)
+
+def addSelection(x):
+    global selections
+    global game
+    selections.append(x)
+    if(len(selections) >= 2):
+        a = selections[0]
+        b = selections[1]
+        selections = []
+
+        print(str(game.pieces[(game.dimension)*a[0] + a[1]].curX) + " : " + str(game.pieces[(game.dimension)*a[0] + a[1]].curY) + "  " + str(b) )
+        print(str(game.pieces[(game.dimension)*b[0] + b[1]].curX) + " : " + str(game.pieces[(game.dimension)*b[0] + b[1]].curY) + "  " + str(a))
+
+        game.pieces[(game.dimension)*a[0] + a[1]].curX = b[0]
+        game.pieces[(game.dimension)*a[0] + a[1]].curY = b[1]
+        game.pieces[(game.dimension)*b[0] + b[1]].curX = a[0]
+        game.pieces[(game.dimension)*b[0] + b[1]].curY = a[1]
+        game.pieces[(game.dimension)*a[0] + a[1]].label.configure(command=lambda i=b[0],j=b[1]: addSelection([i,j]))
+        game.pieces[(game.dimension)*b[0] + b[1]].label.configure(command=lambda i=a[0],j=a[1]: addSelection([i,j]))
+        hold = Piece()
+        hold = game.pieces[(game.dimension)*a[0] + a[1]]
+        game.pieces[(game.dimension)*a[0] + a[1]] = game.pieces[(game.dimension)*b[0] + b[1]]
+        game.pieces[(game.dimension)*b[0] + b[1]] = hold
+
+        
+        print(str(game.pieces[(game.dimension)*a[0] + a[1]].curX) + " : " + str(game.pieces[(game.dimension)*a[0] + a[1]].curY) )
+        print(str(game.pieces[(game.dimension)*b[0] + b[1]].curX) + " : " + str(game.pieces[(game.dimension)*b[0] + b[1]].curY) )
+
+        gamePage()
+
+
+def generatePieces(puzzle, image):
+    print("Generating puzzle pieces")
+    for i in range(puzzle.dimension): #row
+        for j in range(puzzle.dimension): #column
+            piece = Piece()
+            (piece.left, piece.upper, piece.right, piece.lower) = (j*puzzle.width, i*puzzle.height, (j+1)*puzzle.width, (i+1)*puzzle.height)
+            tempImage = image.crop((piece.left, piece.upper, piece.right, piece.lower))
+            tempPhoto = ImageTk.PhotoImage(tempImage)
+
+            label = tk.Button(master = window, image=tempPhoto, anchor=tk.CENTER, command=lambda i=i,j=j: addSelection([i,j]))
+            label.photo = tempPhoto
+            piece.label = label
+            piece.finX = i
+            piece.curX = i
+            piece.finY = j
+            piece.curY = j
+            puzzle.pieces.append(piece)
+
+def scramblePuzzle(puzzle):
+    print("Shuffling puzzle pieces")
+    random.shuffle(puzzle.pieces) #Pieces shuffled
+    #Update current positions
+    for i in range(puzzle.dimension):
+        for j in range(puzzle.dimension):
+            puzzle.pieces[(puzzle.dimension)*i + j].curX = i
+            puzzle.pieces[(puzzle.dimension)*i + j].curY = j
+            puzzle.pieces[(puzzle.dimension)*i + j].label.configure(command=lambda i=i,j=j: addSelection([i,j]))
+
+#This could use some work, some pieces kinda clip each other
+# def displayPuzzle(puzzle):
+#     print("Displaying puzzle pieces")
+#     for i in range (len(puzzle.pieces)):
+#         puzzle.pieces[i].label.place(x = puzzle.pieces[i].curY*puzzle.width, y=puzzle.pieces[i].curX*puzzle.height)
+
+def savePuzzle(puzzle):
+    print("Saving data...")
+    for i in range(len(puzzle.pieces)): #clear out pictures since they can't be pickled
+        puzzle.pieces[i].label = ''
+    file_pi = open(puzzle.filepath + ".puz", 'wb')
+    pickle.dump(puzzle, file_pi)
+    print("Data saved")
+
+#Function calls to make sure the above all works
+# game = Puzzle()
+# generatePuzzle(game)
+# scramblePuzzle(game)
+# displayPuzzle(game)
+# savePuzzle(game)
+# root.mainloop()
 
 ####################################################################################################################################################################
 #############################################################################functions##############################################################################
@@ -63,19 +171,24 @@ atexit.register(endFun)
 def submitCountFun():
     global pieces
     global elems
+    global game
     pieces = int(elems['countEntry'].get())
     if pieces > 0 and not isinstance(math.sqrt(pieces), int):
         pieces = math.ceil(math.sqrt(pieces))**2
     #print(pieces)
-    fillGame()
+    game = Puzzle()
+    generatePuzzle(game)
+    scramblePuzzle(game)
     gamePage()
 
 ################################ load image file  ################################
 def newGameFun():
     #print("new game")
+    global image
     newName = ""
     newName = tk.filedialog.askopenfilename(initialdir=".")
     newGamePageTwo()
+    image = newName
 
 ################################select saved state################################
 def loadGameFun():
@@ -95,6 +208,7 @@ def saveState():
 ################################    game page     ################################
 def gamePage():
     global elems
+    global game
     for key in elems:
         try:
             elems[key].place_forget()
@@ -108,6 +222,14 @@ def gamePage():
     elems['new'].place(relwidth=0.2,relheight=0.05,relx=0.4,rely=0.005)
     elems['quit'] = tk.Button(master=window, font=smallFont, text="Quit", bg=bg, fg=fg, activebackground=selCol, command=endFun)
     elems['quit'].place(relwidth=0.2,relheight=0.05,relx=0.7,rely=0.005)
+    for i in range (len(game.pieces)):
+        try:
+            game.pieces[i].label.place_forget()
+        except:
+            pass
+    for i in range (len(game.pieces)):
+        game.pieces[i].label.place(x = game.pieces[i].curY*game.width+100, y=game.pieces[i].curX*game.height+100)
+    
 
 ################################ piece count page ################################
 def newGamePageTwo():
@@ -141,3 +263,5 @@ def loadMain():
 ################################    main calls    ################################
 loadMain()
 window.mainloop()
+
+
