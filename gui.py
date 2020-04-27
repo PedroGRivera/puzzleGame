@@ -246,10 +246,18 @@ def newGamePageTwo():
 ################################    main page     ################################
 def loadMain():
     global elems
+    global game
     for key in elems:
         try:
             elems[key].place_forget()
         except: pass
+    try:
+        for i in range (len(game.pieces)):
+            try:
+                game.pieces[i].label.place_forget()
+            except:
+                pass
+    except: pass
     elems.clear()
     elems['title']    = tk.Label(master=window, text="Puzzle Creator", anchor=tk.CENTER, font=mainFont, bg=bg, fg=fg)
     elems['title'].place(relwidth=0.8,relheight=0.1,relx=0.1,rely=0.2)
@@ -259,6 +267,7 @@ def loadMain():
     elems['loadGame'].place(relwidth=0.5,relheight=0.1,relx=0.25,rely=0.6)
     elems['quitGame'] = tk.Button(master=window, text="Quit", anchor=tk.CENTER, font=mainFont, bg=bg, fg=fg, activebackground=selCol, command=endFun)
     elems['quitGame'].place(relwidth=0.5,relheight=0.1,relx=0.25,rely=0.8)
+
 
 ################################    main calls    ################################
 loadMain()
