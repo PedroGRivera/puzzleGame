@@ -26,6 +26,7 @@ selCol = "#2b8c6f"
 #fonts
 mainFont = ("Arial", 25)
 smallFont = ("Arial", 18)
+xlFont = ("Arial", 30)
 pieces = 2
 game = None
 image = ""
@@ -99,9 +100,22 @@ def addSelection(x):
         print(str(game.pieces[(game.dimension)*a[0] + a[1]].curX) + " : " + str(game.pieces[(game.dimension)*a[0] + a[1]].curY) )
         print(str(game.pieces[(game.dimension)*b[0] + b[1]].curX) + " : " + str(game.pieces[(game.dimension)*b[0] + b[1]].curY) )
 
-        print(validatePuzzle(game))
-        gamePage()
+        if(validatePuzzle(game)):
+            for i in range (len(game.pieces)):
+                try:
+                    game.pieces[i].label.place_forget()
+                except:
+                    pass
+            elems['congrats'] = tk.Label(master=window, text="Puzzle Complete!", anchor=tk.CENTER, font=xlFont, bg=bg, fg=fg)
+            elems['congrats'].place(relwidth=0.8,relheight=0.25,relx=0.1,rely=0.4)
+        else:
+            gamePage()
 
+def addSelectionLoad(x):
+    global game
+    i = int(x / game.dimension)
+    j = int(x % game.dimension)
+    addSelection([i,j])
 
 def generatePieces(puzzle, image):
     print("Generating puzzle pieces")
@@ -138,6 +152,11 @@ def scramblePuzzle(puzzle):
 #         puzzle.pieces[i].label.place(x = puzzle.pieces[i].curY*puzzle.width, y=puzzle.pieces[i].curX*puzzle.height)
 
 def savePuzzle(puzzle):
+    for i in range (len(game.pieces)):
+            try:
+                game.pieces[i].label.place_forget()
+            except:
+                print("piece kill fail: " + str(i))
     print("Saving data...")
     for i in range(len(puzzle.pieces)): #clear out pictures since they can't be pickled
         puzzle.pieces[i].label = ''
@@ -146,19 +165,23 @@ def savePuzzle(puzzle):
     print("Data saved")
 
 #Might be an issue here with the way I wrote it syntactically. Logically it works
-def loadPuzzle(puzzle):
-    file_pi = open(filepath + ".puz", 'rb')
-    puzzle = pickle.load(file_pi)
-    image = Image.open(puzzle.filepath)
+def loadPuzzle(filepath):
+    global game
 
-    for i in range(len(puzzle.pieces)): #remake pictures from dimensions
-        tempImage = image.crop((puzzle.pieces[i].left, puzzle.pieces[i].upper, puzzle.pieces[i].right, puzzle.pieces[i].lower))
+    file_pi = open(filepath, 'rb')
+    game = pickle.load(file_pi)
+    image = Image.open(game.filepath)
+
+    for i in range(len(game.pieces)): #remake pictures from dimensions
+        tempImage = image.crop((game.pieces[i].left, game.pieces[i].upper, game.pieces[i].right, game.pieces[i].lower))
         tempPhoto = ImageTk.PhotoImage(tempImage)
-        label = tk.Label(master = root, image=tempPhoto, anchor=tk.CENTER)
+        label = tk.Button(master = window, image=tempPhoto, anchor=tk.CENTER, command=lambda i=i: addSelectionLoad(i))
         label.photo = tempPhoto
-        puzzle.pieces[i].label = label
+        game.pieces[i].label = label
 
     print("Puzzle save data opened")
+    print(game.pieces)
+    gamePage()
 
 #Checks if puzzle is finished or not. Returns bool
 def validatePuzzle(puzzle):
@@ -218,11 +241,14 @@ def loadGameFun():
     #print("load game")
     loadName = ""
     loadName = tk.filedialog.askopenfilename(initialdir=".")
+    loadPuzzle(loadName)
 
 ####################################save state####################################
 def saveState():
+    global game
     #print("saving")
-    pass
+    savePuzzle(game)
+    loadMain()
 
 ####################################################################################################################################################################
 ###############################################################################pages################################################################################
@@ -245,6 +271,7 @@ def gamePage():
     elems['new'].place(relwidth=0.2,relheight=0.05,relx=0.4,rely=0.005)
     elems['quit'] = tk.Button(master=window, font=smallFont, text="Quit", bg=bg, fg=fg, activebackground=selCol, command=endFun)
     elems['quit'].place(relwidth=0.2,relheight=0.05,relx=0.7,rely=0.005)
+
     for i in range (len(game.pieces)):
         try:
             game.pieces[i].label.place_forget()
@@ -273,20 +300,22 @@ def loadMain():
     for key in elems:
         try:
             elems[key].place_forget()
-        except: pass
+        except:
+            print("elem kill fail: " + key)
     try:
+        print(game.pieces)
         for i in range (len(game.pieces)):
             try:
                 game.pieces[i].label.place_forget()
             except:
-                pass
+                print("piece kill fail: " + str(i))
     except: pass
     elems.clear()
     elems['title']    = tk.Label(master=window, text="Puzzle Creator", anchor=tk.CENTER, font=mainFont, bg=bg, fg=fg)
     elems['title'].place(relwidth=0.8,relheight=0.1,relx=0.1,rely=0.2)
     elems['newGame']  = tk.Button(master=window, text="Start a new game", anchor=tk.CENTER, font=mainFont, bg=bg, fg=fg, activebackground=selCol, command=newGameFun)
     elems['newGame'].place(relwidth=0.5,relheight=0.1,relx=0.25,rely=0.4)
-    elems['loadGame'] = tk.Button(master=window, text="Load a saved game", anchor=tk.CENTER, font=mainFont, bg=bg, fg=fg, activebackground=selCol, command=loadGameFun)
+    elems['loadGame'] = tk.Button(master=window, text="Load a saved game", anchor=tk.CENTER, font=mainFont, bg=bg, fg=fg, activebackground=selCol, command=lambda: loadGameFun())
     elems['loadGame'].place(relwidth=0.5,relheight=0.1,relx=0.25,rely=0.6)
     elems['quitGame'] = tk.Button(master=window, text="Quit", anchor=tk.CENTER, font=mainFont, bg=bg, fg=fg, activebackground=selCol, command=endFun)
     elems['quitGame'].place(relwidth=0.5,relheight=0.1,relx=0.25,rely=0.8)
