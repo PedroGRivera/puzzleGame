@@ -31,8 +31,10 @@ pieces = 2
 game = None
 image = ""
 selections = []
-
-
+imgs = []
+wOff = 100 #int(window.winfo_height()*0.1) #height * percentage
+hOff = 100 #int(window.winfo_width()*0.1)  #width  * percentage
+curPage = False
 
 ################################   create canvas  ################################
 can = tk.Canvas(master=window, width=750, height=750, bg=bg)
@@ -45,6 +47,7 @@ can.pack(fill=tk.BOTH, side=tk.LEFT,expand=True)
 
 class Piece:
     def __init__(self):
+        self.pos = ''
         self.label = ''     #label holds the puzzle piece itself, may need to change this to button if we use buttons later
         self.left = ''      #left, upper, right, lower are needed to crop the piece
         self.upper = ''
@@ -54,6 +57,7 @@ class Piece:
         self.curY = ''       #Current Y (column) position
         self.finX = ''       #Final X position
         self.finY = ''       #final Y position
+        self.curAngle = ''   #angle = (90*value)%360
 
 class Puzzle:
     def __init__(self):
@@ -118,7 +122,11 @@ def addSelectionLoad(x):
     addSelection([i,j])
 
 def generatePieces(puzzle, image):
+    global imgs
+    imgs = []
+
     print("Generating puzzle pieces")
+    pos = 0
     for i in range(puzzle.dimension): #row
         for j in range(puzzle.dimension): #column
             piece = Piece()
@@ -133,9 +141,16 @@ def generatePieces(puzzle, image):
             piece.curX = i
             piece.finY = j
             piece.curY = j
+            piece.pos = pos
+            
+            pos += 1
+            piece.curAngle = 0
+            imgs.append(tempImage)
             puzzle.pieces.append(piece)
 
+
 def scramblePuzzle(puzzle):
+    global imgs
     print("Shuffling puzzle pieces")
     random.shuffle(puzzle.pieces) #Pieces shuffled
     #Update current positions
@@ -143,6 +158,14 @@ def scramblePuzzle(puzzle):
         for j in range(puzzle.dimension):
             puzzle.pieces[(puzzle.dimension)*i + j].curX = i
             puzzle.pieces[(puzzle.dimension)*i + j].curY = j
+
+            pos = puzzle.pieces[(puzzle.dimension)*i + j].pos
+            rotVal = random.randint(0,3)
+            puzzle.pieces[(puzzle.dimension)*i + j].curAngle = rotVal
+            im = imgs[pos].rotate(int((rotVal*90)%360))
+            tempPhoto = ImageTk.PhotoImage(im)
+            puzzle.pieces[(puzzle.dimension)*i + j].label.configure(image=tempPhoto)
+            puzzle.pieces[(puzzle.dimension)*i + j].label.photo = tempPhoto
             puzzle.pieces[(puzzle.dimension)*i + j].label.configure(command=lambda i=i,j=j: addSelection([i,j]))
 
 #This could use some work, some pieces kinda clip each other
@@ -186,7 +209,7 @@ def loadPuzzle(filepath):
 #Checks if puzzle is finished or not. Returns bool
 def validatePuzzle(puzzle):
     for i in range(len(puzzle.pieces) - 1):
-        if ((puzzle.pieces[i].curX != puzzle.pieces[i].finX) or (puzzle.pieces[i].curY != puzzle.pieces[i].finY)):
+        if ((puzzle.pieces[i].curX != puzzle.pieces[i].finX) or (puzzle.pieces[i].curY != puzzle.pieces[i].finY) or (puzzle.pieces[i].curAngle != 0)):
             return False
     return True
 
@@ -258,6 +281,13 @@ def saveState():
 def gamePage():
     global elems
     global game
+    global window
+    global wOff
+    global hOff
+
+    global curPage 
+    curPage = True
+    
     for key in elems:
         try:
             elems[key].place_forget()
@@ -277,13 +307,18 @@ def gamePage():
             game.pieces[i].label.place_forget()
         except:
             pass
+    print("wOff:" + str(wOff) + " - hOff:" + str(hOff))
     for i in range (len(game.pieces)):
-        game.pieces[i].label.place(x = game.pieces[i].curY*game.width+100, y=game.pieces[i].curX*game.height+100)
+        game.pieces[i].label.place(x = game.pieces[i].curY*game.width+wOff, y=game.pieces[i].curX*game.height+hOff)
     
 
 ################################ piece count page ################################
 def newGamePageTwo():
     global elems
+
+    global curPage 
+    curPage = False
+
     elems['newGame'].place_forget()
     elems['loadGame'].place_forget()
     elems['countMessage'] = tk.Label(master=window, text="Please enter the number of pieces\n you would like", anchor=tk.CENTER, font=smallFont, bg=bg, fg=fg)
@@ -297,6 +332,10 @@ def newGamePageTwo():
 def loadMain():
     global elems
     global game
+
+    global curPage 
+    curPage = False
+
     for key in elems:
         try:
             elems[key].place_forget()
@@ -321,8 +360,71 @@ def loadMain():
     elems['quitGame'].place(relwidth=0.5,relheight=0.1,relx=0.25,rely=0.8)
 
 
+################################       keys       ################################
+def down(e):
+    global selections
+    global game
+    #print(e.char)
+    if e.char == 'r' and len(selections) == 1:
+        print("rotate")
+
+        print(selections)
+        i = selections[0][0]
+        j = selections[0][1]
+        pos = game.pieces[(game.dimension)*i + j].pos
+        rotVal = int((game.pieces[(game.dimension)*i + j].curAngle+1)%4)
+        print(rotVal)
+        game.pieces[(game.dimension)*i + j].curAngle = rotVal
+        im = imgs[pos].rotate(int((rotVal*90)%360))
+        tempPhoto = ImageTk.PhotoImage(im)
+        game.pieces[(game.dimension)*i + j].label.configure(image=tempPhoto)
+        game.pieces[(game.dimension)*i + j].label.photo = tempPhoto
+        game.pieces[(game.dimension)*i + j].curAngle = rotVal
+
+        selections = []
+        if(validatePuzzle(game)):
+            for i in range (len(game.pieces)):
+                try:
+                    game.pieces[i].label.place_forget()
+                except:
+                    pass
+            elems['congrats'] = tk.Label(master=window, text="Puzzle Complete!", anchor=tk.CENTER, font=xlFont, bg=bg, fg=fg)
+            elems['congrats'].place(relwidth=0.8,relheight=0.25,relx=0.1,rely=0.4)
+
+
+######################################resize######################################
+# def resize(e):
+#     global wOff
+#     global hOff
+#     global curPage
+
+#     if (wOff != int(window.winfo_width()*0.1) or hOff != int(window.winfo_height()*0.1) ) and curPage == True : 
+        
+#         hOff = int(window.winfo_height()*0.1) #height * percentage
+#         wOff = int(window.winfo_width()*0.1)  #width  * percentage
+
+#         for i in range (len(game.pieces)):
+
+#             #resize pieces
+#             pos = game.pieces[i].pos
+#             im = imgs[pos].resize([])
+#             tempPhoto = ImageTk.PhotoImage(im)
+#             game.pieces[(game.dimension)*i + j].label.configure(image=tempPhoto)
+#             game.pieces[(game.dimension)*i + j].label.photo = tempPhoto
+
+#             #place in new places
+#             game.pieces[i].label.place(x = game.pieces[i].curY*game.width+wOff, y=game.pieces[i].curX*game.height+hOff)
+
+        
+
 ################################    main calls    ################################
+
+
 loadMain()
+
+window.bind('<KeyPress>', down)
+# window.bind('<Configure>', resize)
+
 window.mainloop()
 
 
