@@ -190,14 +190,20 @@ def savePuzzle(puzzle):
 #Might be an issue here with the way I wrote it syntactically. Logically it works
 def loadPuzzle(filepath):
     global game
-
+    global imgs
     file_pi = open(filepath, 'rb')
     game = pickle.load(file_pi)
     image = Image.open(game.filepath)
-
+    imgs = [None] * len(game.pieces) 
     for i in range(len(game.pieces)): #remake pictures from dimensions
         tempImage = image.crop((game.pieces[i].left, game.pieces[i].upper, game.pieces[i].right, game.pieces[i].lower))
-        tempPhoto = ImageTk.PhotoImage(tempImage)
+
+        imgs[game.pieces[i].pos] = tempImage
+        rotVal = game.pieces[i].curAngle
+        im = imgs[game.pieces[i].pos].rotate(int((rotVal*90)%360))
+        tempPhoto = ImageTk.PhotoImage(im)
+
+        #tempPhoto = ImageTk.PhotoImage(tempImage)
         label = tk.Button(master = window, image=tempPhoto, anchor=tk.CENTER, command=lambda i=i: addSelectionLoad(i))
         label.photo = tempPhoto
         game.pieces[i].label = label
